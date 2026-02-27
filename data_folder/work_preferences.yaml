@@ -27,21 +27,25 @@ date:
 
 positions:
   - Software engineer
+  - Backend engineer
+  - Fullstack engineer
+  - Frontend engineer
+  - Angular Developer
+  - Node.js Developer
+  - Fullstack Javascript
 
 locations:
   - Germany
+  - Tunisia
+  - Remote
 
 apply_once_at_company: true
 
 distance: 100
 
 company_blacklist:
-  - wayfair
-  - Crossover
 
 title_blacklist:
-  - word1
-  - word2
 
 location_blacklist:
-  - Brazil
+  - 
