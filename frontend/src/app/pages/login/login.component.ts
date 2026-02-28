@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -17,7 +17,11 @@ export class LoginComponent {
     error = '';
     loading = false;
 
-    constructor(private authService: AuthService, private router: Router) { }
+    constructor(
+        private authService: AuthService,
+        private router: Router,
+        private cdr: ChangeDetectorRef
+    ) { }
 
     onSubmit(): void {
         if (!this.username || !this.password) {
@@ -27,14 +31,18 @@ export class LoginComponent {
 
         this.loading = true;
         this.error = '';
+        this.cdr.detectChanges();
 
         this.authService.login(this.username, this.password).subscribe({
             next: () => {
+                this.loading = false;
+                this.cdr.detectChanges();
                 this.router.navigate(['/jobs']);
             },
             error: (err) => {
                 this.loading = false;
                 this.error = err.error?.detail || 'Login failed. Please try again.';
+                this.cdr.detectChanges();
             }
         });
     }

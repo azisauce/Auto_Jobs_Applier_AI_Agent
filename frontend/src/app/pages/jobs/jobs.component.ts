@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
@@ -9,6 +9,7 @@ import { Subscription } from 'rxjs';
 @Component({
     selector: 'app-jobs',
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.Default,
     imports: [CommonModule, FormsModule],
     templateUrl: './jobs.component.html',
     styleUrl: './jobs.component.css'
@@ -34,15 +35,22 @@ export class JobsComponent implements OnInit, OnDestroy {
     constructor(
         private jobService: JobService,
         private authService: AuthService,
-        private scriptService: ScriptService
+        private scriptService: ScriptService,
+        private cdr: ChangeDetectorRef
     ) { }
 
     ngOnInit(): void {
         this.subs.push(
-            this.authService.username$.subscribe(u => this.username = u)
+            this.authService.username$.subscribe(u => {
+                this.username = u;
+                this.cdr.detectChanges();
+            })
         );
         this.subs.push(
-            this.scriptService.status$.subscribe(s => this.scriptStatus = s)
+            this.scriptService.status$.subscribe(s => {
+                this.scriptStatus = s;
+                this.cdr.detectChanges();
+            })
         );
         this.loadJobs();
         this.scriptService.getStatus().subscribe();
@@ -55,16 +63,19 @@ export class JobsComponent implements OnInit, OnDestroy {
     loadJobs(): void {
         this.loading = true;
         this.error = '';
+        this.cdr.detectChanges();
         this.jobService.getJobs(this.currentPage, this.limit, this.sortBy, this.order).subscribe({
             next: (res: JobListResponse) => {
                 this.jobs = res.jobs;
                 this.totalJobs = res.total;
                 this.totalPages = res.pages;
                 this.loading = false;
+                this.cdr.detectChanges();
             },
             error: (err) => {
                 this.error = err.error?.detail || 'Failed to load jobs';
                 this.loading = false;
+                this.cdr.detectChanges();
             }
         });
     }
@@ -103,16 +114,19 @@ export class JobsComponent implements OnInit, OnDestroy {
         this.scriptService.runScript(type).subscribe({
             next: () => {
                 this.scriptLoading = false;
+                this.cdr.detectChanges();
             },
             error: (err) => {
                 this.scriptLoading = false;
                 this.error = err.error?.detail || 'Failed to start script';
+                this.cdr.detectChanges();
             }
         });
     }
 
     toggleScriptMenu(): void {
         this.showScriptMenu = !this.showScriptMenu;
+        this.cdr.detectChanges();
     }
 
     logout(): void {
