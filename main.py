@@ -163,46 +163,51 @@ def init_browser() -> webdriver.Chrome:
     except Exception as e:
         raise RuntimeError(f"Failed to initialize browser: {str(e)}")
 
-def create_and_run_bot(parameters, llm_api_key):
+def create_and_run_bot(parameters, llm_api_key, score_mode=False):
     try:
-        style_manager = StyleManager()
-        resume_generator = ResumeGenerator()
-        with open(parameters['uploads']['plainTextResume'], "r", encoding='utf-8') as file:
-            plain_text_resume = file.read()
-        resume_object = Resume(plain_text_resume)
-        resume_generator_manager = FacadeManager(llm_api_key, style_manager, resume_generator, resume_object, Path("data_folder/output"))
-        
-        # Run the resume generator manager's functions if resume is not provided
-        if 'resume' not in parameters['uploads']:
-            resume_generator_manager.choose_style()
-        
-        job_application_profile_object = JobApplicationProfile(plain_text_resume)
-        
         browser = init_browser()
         login_component = get_authenticator(driver=browser, platform='linkedin')
-        apply_component = AIHawkJobManager(browser)
-        gpt_answerer_component = GPTAnswerer(parameters, llm_api_key)
-        bot = AIHawkBotFacade(login_component, apply_component)
-        bot.set_job_application_profile_and_resume(job_application_profile_object, resume_object)
-        bot.set_gpt_answerer_and_resume_generator(gpt_answerer_component, resume_generator_manager)
-        bot.set_parameters(parameters)
-        bot.start_login()
-        if (parameters['collectMode'] == True):
-            logger.info('Collecting')
-            bot.start_collect_data()
+
+        # Login to LinkedIn
+        login_component.start()
+        logger.info("Login successful.")
+
+        if score_mode:
+            # --- SCORING MODE ---
+            logger.info("Starting job scoring mode...", color="yellow")
+            from src.job_scorer import JobScorer
+
+            # Load resume text
+            with open(parameters['uploads']['plainTextResume'], "r", encoding='utf-8') as f:
+                resume_text = f.read()
+
+            scorer = JobScorer(
+                driver=browser,
+                parameters=parameters,
+                llm_api_key=llm_api_key,
+                resume_text=resume_text
+            )
+            scorer.score_all_unscored()
         else:
-            logger.info('Applying')
-            bot.start_apply()
+            # --- COLLECTION MODE ---
+            logger.info("Starting job collection...")
+            apply_component = AIHawkJobManager(browser)
+            apply_component.set_parameters(parameters)
+            apply_component.start_collecting_to_db()
+
     except WebDriverException as e:
         logger.error(f"WebDriver error occurred: {e}")
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise RuntimeError(f"Error running the bot: {str(e)}")
 
 
 @click.command()
 @click.option('--resume', type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=Path), help="Path to the resume PDF file")
 @click.option('--collect', is_flag=True, help="Only collects data job information into data.json file")
-def main(collect: bool = False, resume: Optional[Path] = None):
+@click.option('--score', is_flag=True, help="Score all unscored jobs in the database using LLM + connection detection")
+def main(collect: bool = False, resume: Optional[Path] = None, score: bool = False):
     try:
         data_folder = Path("data_folder")
         secrets_file, config_file, plain_text_resume_file, output_folder = FileManager.validate_data_folder(data_folder)
@@ -214,7 +219,7 @@ def main(collect: bool = False, resume: Optional[Path] = None):
         parameters['outputFileDirectory'] = output_folder
         parameters['collectMode'] = collect
         
-        create_and_run_bot(parameters, llm_api_key)
+        create_and_run_bot(parameters, llm_api_key, score_mode=score)
     except ConfigError as ce:
         logger.error(f"Configuration error: {str(ce)}")
         logger.error(f"Refer to the configuration guide for troubleshooting: https://github.com/feder-cr/Auto_Jobs_Applier_AIHawk?tab=readme-ov-file#configuration {str(ce)}")
@@ -229,3 +234,4 @@ def main(collect: bool = False, resume: Optional[Path] = None):
 
 if __name__ == "__main__":
     main()
+

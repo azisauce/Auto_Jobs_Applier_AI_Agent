@@ -14,6 +14,8 @@ def generate_regex_patterns_for_blacklisting(blacklist):
         #                    rather than as parts of other words.
         patterns = []
         for term in blacklist:
+            if not term:
+                continue
             # Split term into individual words
             words = term.split()
             # Create a lookahead for each word to ensure it appears independently

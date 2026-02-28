@@ -545,3 +545,55 @@ Here are detailed guidelines to help you choose the correct section:
 
 Provide only the exact name of the section from the list above with no additional text.
 """
+
+job_scoring_template = """
+You are an expert job market analyst. Evaluate how well the candidate's resume matches the job description.
+
+## Scoring Criteria (return a JSON object with these exact keys):
+
+1. **skills_match** (0-30): How well the candidate's technical skills match the job requirements.
+   - 25-30: Perfect match — candidate has nearly all required technologies
+   - 15-24: Good match — candidate has most key technologies, missing some
+   - 5-14: Partial match — candidate has some relevant skills but significant gaps
+   - 0-4: Poor match — very few overlapping skills
+
+2. **experience_fit** (0-25): How well the candidate's experience level matches.
+   - 20-25: Experience level perfectly aligns with requirements
+   - 10-19: Close match, within 1-2 years of requirement
+   - 0-9: Significant experience gap
+
+3. **keyword_relevance** (0-20): How relevant is this job to the candidate's target roles and career direction.
+   - 15-20: Directly aligned with candidate's career trajectory
+   - 8-14: Related but not perfectly aligned
+   - 0-7: Tangentially related
+
+4. **growth_potential** (0-15): Career growth opportunity this job offers the candidate.
+   - 10-15: Excellent growth opportunity (new skills, leadership, advancement)
+   - 5-9: Moderate growth
+   - 0-4: Limited growth
+
+5. **location_fit** (0-10): How well the job location matches preferences.
+   - 8-10: Perfect location match (remote when wanting remote, or exact city)
+   - 4-7: Acceptable location
+   - 0-3: Poor location match
+
+## Resume:
+```
+{resume}
+```
+
+## Job Title: {job_title}
+## Job Company: {job_company}
+## Job Location: {job_location}
+
+## Job Description:
+```
+{job_description}
+```
+
+## Target Positions: {target_positions}
+## Preferred Locations: {preferred_locations}
+
+## Output Format (STRICTLY follow this JSON format, nothing else):
+{{"skills_match": <number>, "experience_fit": <number>, "keyword_relevance": <number>, "growth_potential": <number>, "location_fit": <number>, "reasoning": "<brief 1-2 sentence explanation>"}}
+"""
