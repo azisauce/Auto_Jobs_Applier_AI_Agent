@@ -1,15 +1,14 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
-import { JobService, Job, JobListResponse } from '../../services/job.service';
+import { JobService, Job, JobListResponse, JobFilters } from '../../services/job.service';
 import { ScriptService, ScriptStatusResponse } from '../../services/script.service';
-import { Subscription } from 'rxjs';
+import { Subscription, Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 
 @Component({
     selector: 'app-jobs',
     standalone: true,
-    changeDetection: ChangeDetectionStrategy.Default,
     imports: [CommonModule, FormsModule],
     templateUrl: './jobs.component.html',
     styleUrl: './jobs.component.css'
@@ -24,6 +23,17 @@ export class JobsComponent implements OnInit, OnDestroy {
     order = 'desc';
     loading = true;
     error = '';
+
+    // Filters
+    statusFilter: 'all' | 'viewed' | 'not_viewed' = 'all';
+    locationFilter = '';
+    titleFilter = '';
+    companyFilter = '';
+
+    // Debounce subjects for text inputs
+    private titleSearch$ = new Subject<string>();
+    private locationSearch$ = new Subject<string>();
+    private companySearch$ = new Subject<string>();
 
     scriptStatus: ScriptStatusResponse | null = null;
     scriptLoading = false;
@@ -52,6 +62,27 @@ export class JobsComponent implements OnInit, OnDestroy {
                 this.cdr.detectChanges();
             })
         );
+
+        // Debounce text search inputs (400ms)
+        this.subs.push(
+            this.titleSearch$.pipe(debounceTime(400), distinctUntilChanged()).subscribe(() => {
+                this.currentPage = 1;
+                this.loadJobs();
+            })
+        );
+        this.subs.push(
+            this.locationSearch$.pipe(debounceTime(400), distinctUntilChanged()).subscribe(() => {
+                this.currentPage = 1;
+                this.loadJobs();
+            })
+        );
+        this.subs.push(
+            this.companySearch$.pipe(debounceTime(400), distinctUntilChanged()).subscribe(() => {
+                this.currentPage = 1;
+                this.loadJobs();
+            })
+        );
+
         this.loadJobs();
         this.scriptService.getStatus().subscribe();
     }
@@ -60,11 +91,28 @@ export class JobsComponent implements OnInit, OnDestroy {
         this.subs.forEach(s => s.unsubscribe());
     }
 
+    get activeFiltersCount(): number {
+        let count = 0;
+        if (this.statusFilter !== 'all') count++;
+        if (this.titleFilter.trim()) count++;
+        if (this.locationFilter.trim()) count++;
+        if (this.companyFilter.trim()) count++;
+        return count;
+    }
+
     loadJobs(): void {
         this.loading = true;
         this.error = '';
         this.cdr.detectChanges();
-        this.jobService.getJobs(this.currentPage, this.limit, this.sortBy, this.order).subscribe({
+
+        const filters: JobFilters = {
+            status: this.statusFilter,
+            title: this.titleFilter,
+            location: this.locationFilter,
+            company: this.companyFilter,
+        };
+
+        this.jobService.getJobs(this.currentPage, this.limit, this.sortBy, this.order, filters).subscribe({
             next: (res: JobListResponse) => {
                 this.jobs = res.jobs;
                 this.totalJobs = res.total;
@@ -78,6 +126,33 @@ export class JobsComponent implements OnInit, OnDestroy {
                 this.cdr.detectChanges();
             }
         });
+    }
+
+    onStatusFilter(val: 'all' | 'viewed' | 'not_viewed'): void {
+        this.statusFilter = val;
+        this.currentPage = 1;
+        this.loadJobs();
+    }
+
+    onTitleInput(): void {
+        this.titleSearch$.next(this.titleFilter);
+    }
+
+    onLocationInput(): void {
+        this.locationSearch$.next(this.locationFilter);
+    }
+
+    onCompanyInput(): void {
+        this.companySearch$.next(this.companyFilter);
+    }
+
+    resetFilters(): void {
+        this.statusFilter = 'all';
+        this.titleFilter = '';
+        this.locationFilter = '';
+        this.companyFilter = '';
+        this.currentPage = 1;
+        this.loadJobs();
     }
 
     onSortChange(): void {
